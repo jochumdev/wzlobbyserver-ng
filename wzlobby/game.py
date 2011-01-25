@@ -79,9 +79,6 @@ class Game(UserDict.IterableUserDict):
                 } 
     
     
-    # Read only property "hosts", simplfies things
-    hosts = property(fget = lambda self: [self.data['host1'], self.data['host2'], self.data['host3']])
-    
     def __init__(self, lobbyVer, gameId = None):
         self.data['lobbyVer'] = lobbyVer
         if gameId:

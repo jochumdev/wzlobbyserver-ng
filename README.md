@@ -16,7 +16,7 @@ TODO
     - It should rebase the protocol not proxy it
     
 * Protocol v4
-    - This needs to implemented
+    - This needs to be implemented
 
 Requirements
 -----------
@@ -35,7 +35,7 @@ start
     cd <your clone>
     ./bin/wzlobbyserver.py
 
-stop it
+stop
 ----
 
     cd <your clone>

@@ -59,14 +59,14 @@ class ProtocolSwitcher(protocol.Protocol):
             
             # Try to detect the protocol
             version = self._detectProtocolVersion(data)
-            if version:
+            if version != False:
                 # Creates a new Protocol based on the version id
                 try:
-                    cls = getattr(globals(), 'Protocol%d' % version)
-                    self.protocol = cls(self.factory, self.transport)
+                    self.protocol = globals()['Protocol%d' % version]()
                 except AttributeError:
-                    log.msg('Cant find protocol version %d' % version)
-                    self.transport.loseConection()
+                    log.msg('Can\'t find protocol version %d (Protocol%d)' % (version, version))
+                    self.transport.loseConnection()
+                    return False
             else:
                 # Detection failed assume v3
                 self.protocol = Protocol3()
@@ -82,6 +82,8 @@ class ProtocolSwitcher(protocol.Protocol):
             self.protocol.makeConnection(self.transport)
             if isV3:
                 self.protocol.dataReceived(data)
+            elif len(data) > 12:
+                self.protocol.dataReceived(data[12:])
                 
             # Now switch the protocol
             # self.transport.protocol = self.protocol
@@ -91,7 +93,7 @@ class ProtocolSwitcher(protocol.Protocol):
         """ I detect a "version\0<version#>" Packet
         """
         try:
-            data = struct.unpack('!8sI', data)
+            data = struct.unpack('!8sI', data[0:12])
             if data[0] == "version\0":
                 return data[1]
             else:
@@ -194,8 +196,6 @@ class Protocol3(protocol.Protocol):
         """ Handles an incoming command 
             and forwards its to the do_X handler.
         """
-        
-        
         if not self.waitData:
             if len(data) == 5:
                 cmd = 'do_%s' % data[:4].lower()
@@ -317,7 +317,7 @@ class Protocol3(protocol.Protocol):
         try:
             # Extract the data from the gamestruct
             data = self.gameStruct.unpack(data)
-            # Create a dict from while using self.gameStructVars as keys 
+            # Create a dict from it while using self.gameStructVars as keys 
             data = dict(izip(self.gameStructVars, data))
             
             # Remove unused keys
@@ -334,8 +334,10 @@ class Protocol3(protocol.Protocol):
         except struct.error:
             return False
         
+        # Now update the game
         self.gameDB.updateGame(data['gameId'], data)
         
+        # Fix for bogus clients (<=2.3.7) which connect twice
         if not self.game:
             self.game = self.gameDB.getGaidGame(data['gameId'])
                 
