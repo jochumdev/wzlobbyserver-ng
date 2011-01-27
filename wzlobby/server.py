@@ -40,11 +40,11 @@ def main():
 
 def makeService():
     s = service.MultiService()
-    f = protocol.ServerFactory()    
+    f = protocol.ServerFactory()
     f.protocol = ProtocolSwitcher
     f.clients = []
-    f.gameDB = GameDB()
+    f.gameDB = GameDB(settings)
     f.settings = settings
-    h = internet.TCPServer(9990, f).setServiceParent(s) 
+    h = internet.TCPServer(9990, f).setServiceParent(s)
     
     return s

@@ -27,94 +27,91 @@ from itertools import count as iterCount
 from twisted.internet import defer
 from twisted.python import log
 from twisted.internet.task import LoopingCall
-from twisted.application import service
+
+import UserDict
 
 from wzlobby.game import Game
 from wzlobby.tools import testConnect
 
-class GameDB(service.Service):
-    
-    def __init__(self):
-        self.gidIndex = {}
-        
+class GameDB(UserDict.IterableUserDict):
+
+    def __init__(self, settings):
+        self.settings = settings
+        self.data = {}
+
         self.numgen = iterCount(1)
 
-    
+
     def createGame(self, lobbyVer):
         gameId = self.numgen.next()
-        
-        game = Game(lobbyVer, gameId)
-        self.gidIndex[gameId] = game
-        
-        return game
-    
-    
-    def getGaidGame(self, gameId):
-        return self.gidIndex.get(gameId, None)
 
-    
-    def getGames(self):
-        return self.gidIndex
-    
-    
+        game = Game(lobbyVer, gameId)
+        log.msg('Created game: %d' % gameId)
+
+        return game
+
+
+    def registerGame(self, game):
+        self.data[game['gameId']] = game
+
+
     def updateGame(self, gameId, data):
-        if not gameId in self.gidIndex:
+        if not gameId in self.data:
             return False
-        
-        self.gidIndex[gameId].update(data)
-        
+
+        self.data[gameId].update(data)
+
         return True
-    
-    
+
+
     def removeGame(self, game):
-        gameId = game['gameId']
-        
+        log.msg('Removing game: %d' % game['gameId'])
         try:
-            game = self.gidIndex[gameId]
-            if game.lCall and game.lCall.running:
-                game.lCall.stop()
-            
-            del(game, self.gidIndex[gameId])
-            
+            del(self.data[game['gameId']])
         except KeyError:
             return False
-                
+
         return True
-    
-    
-    def checkGame(self, game):
+
+
+    def check(self, game):
+        """ Starts a loop which checks the given game every 10 seconds
+            FIXME: make that interval configurable!
+        """
+        if not game['host']:
+            return defer.succeed('Ignoring empty games in case of the 2.3 multiconnect bug')
+
+        hostname = game['description'].lower().split(' ')
+        if not self.settings.badwords.isdisjoint(hostname):
+            log.msg('Game name not acceptable.')
+            return defer.fail(Exception('Game name not acceptable. The game is NOT hosted, change the name of your game.'))
+
+        if game.lCall and game.lCall.running:
+            game.lCall.stop()
+
+        d = self._check(game)
+        d.addCallback(lambda x: self.settings.getMotd(game['multiVer']))
+
+        # Start the loopingcall
+        game.lCall = LoopingCall(self._check, game)
+        d2 = game.lCall.start(10, now=False)
+        # Ignore future errors on the LoopingCall
+        d2.addErrback(lambda x: '')
+
+        return d
+
+
+    def _check(self, game):
         """ Check the game for its connectivity and removes it on failures.
         
         returns a C{twisted.internet.defer.Deferred} 
         """
-        if not game or not game['gameHost']:
-            return defer.succeed('NO GAME or hostip')
-        
-        d = testConnect(game['gameHost'], game['gamePort'])            
-        d.addErrback(lambda x: self.removeGame(game))
-        
+        def removeGame(failure):
+            self.removeGame(game)
+
+            return defer.fail(Exception('Game unreachable, failed to open a connection to port %d' % game['port']))
+
+        d = testConnect(game['host'], game['port'])
+        d.addErrback(removeGame)
+
         return d
-    
-    
-    def loopCheck(self, game):
-        """ Starts a loop which checks the given game every 10 seconds
-            FIXME: make that interval configurable!
-        """
-        
-        gameId = game['gameId']
-        
-        if gameId in self.gidIndex:            
-            if game.lCall and game.lCall.running:
-                log.msg('Stopping old loopingcall for %s:%d' % (game['gameHost'], game['gamePort']))
-                game.lCall.stop()
-                
-            game.lCall = LoopingCall(self.checkGame, game)
-            game.lCall.start(10, now=False)
-
-
-    def __remove(self, g):
-        # ignore keyerrors, this never removes indexes
-        try:
-            self.list.gidIndex(g)
-        except KeyError:
-            pass

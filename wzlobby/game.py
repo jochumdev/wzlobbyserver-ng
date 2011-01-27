@@ -25,17 +25,17 @@ __all__ = ['Game']
 import UserDict
 
 class Game(UserDict.IterableUserDict):
-    
+
     # Internal store for the LoopingCall C{check>wzlobby.gamedb.gameDB.checkGame}
     lCall = None
-    
+
     # These are the defaults for a new game
     # from 2.3 source
-    data = {'gameHost'          :   None,    # Our clients IP Address 
-            'gamePort'          :   0,       # Gamehost port for clients
+    data = {'host'              :   None, # Our clients IP Address 
+            'port'              :   0, # Gamehost port for clients
             'description'       :   None,
             'currentPlayers'    :   0,
-            'maxPlayers'        :   0,                     
+            'maxPlayers'        :   0,
             'lobbyVer'          :   0,
             'multiVer'          :   0,
             'wzVerMajor'        :   0,
@@ -45,18 +45,18 @@ class Game(UserDict.IterableUserDict):
             'gameId'            :   0,
             'mods'              :   0,
             'modlist'           :   u'',
-            
+
             # Since 2.3.6
             'mapname'           :   u'',
             'hostplayer'        :   u'',
-             
+
             # For Lobby Ver 3
-            'gStructVer'        :   3,             
+            'gStructVer'        :   3,
             }
-    
+
     # Translation table for incoming data
-    dataTypes = {'gameHost'    :   'string',
-                 'gamePort'    :   'int',
+    dataTypes = {'host'        :   'string',
+                 'port'        :   'int',
                  'description' :   'string',
                  'currentPlayers': 'int',
                  'maxPlayers'  :   'int',
@@ -69,31 +69,38 @@ class Game(UserDict.IterableUserDict):
                  'gameId'      :   'int',
                  'mods'        :   'int',
                  'modlist'     :   'string',
-                 
+
                  # Since 2.3.6
                  'mapname'     :   u'',
-                 'hostplayer'  :   u'',                 
-                  
+                 'hostplayer'  :   u'',
+
                  # For Lobby Ver 3
                  'gStructVer'  :   'int',
-                } 
-    
-    
-    def __init__(self, lobbyVer, gameId = None):
+                }
+
+
+    def __init__(self, lobbyVer, gameId):
         self.data['lobbyVer'] = lobbyVer
-        if gameId:
-            self.data['gameId'] = gameId
-                      
-        
+        self.data['gameId'] = gameId
+
+
     def __setitem__(self, k, v):
         """ Setter for self.data[k] 
         may raises a KeyError if the key is not in self.dataTypes
-        """        
+        """
         type = self.dataTypes[k]
-        if type == 'string':                
-            self.data[k] = unicode(v.strip("\0"))
+        if type == 'string':
+            self.data[k] = unicode(v).strip("\0")
         elif type == 'int':
             self.data[k] = int(v)
         elif type == 'bool':
             self.data[k] = bool(v)
-        
+
+
+    def update(self, data):
+        for k, v in data.iteritems():
+            self.__setitem__(k, v)
+
+    def __del__(self):
+        if self.lCall and self.lCall.running:
+            self.lCall.stop()

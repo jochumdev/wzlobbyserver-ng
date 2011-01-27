@@ -16,7 +16,7 @@ TODO
     - It should rebase the protocol not proxy it
     
 * Protocol v4
-    - This needs to be implemented
+    - Needs more tests
 
 Requirements
 -----------
