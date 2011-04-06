@@ -23,20 +23,24 @@
 __all__ = ['Protocol4']
 
 from twisted.internet import defer
+from socketrpc.twisted_srpc import SocketRPCProtocol, set_serializer, Fault
 
-from wzlobby import bsonlib
+set_serializer('bson')
 
 NO_GAME = -402
 NOT_ACCEPTABLE = -403
 GAME_IS_FULL = -404
+WRONG_LOGIN = -405
 
-class Protocol4(bsonlib.Server):
+class Protocol4(SocketRPCProtocol):
 
     game = None
 
     lobbyVersion = 4
 
     def connectionMade(self):
+        SocketRPCProtocol.connectionMade(self)
+
         self.gameDB = self.factory.gameDB
         self.settings = self.factory.settings
 
@@ -45,16 +49,18 @@ class Protocol4(bsonlib.Server):
         """ This will be called when the client
         closed its connection.
         """
+        SocketRPCProtocol.connectionLost(self, reason)
+
         if self.game:
             self.gameDB.removeGame(self.game)
 
 
-    def do_addGame(self, args):
+    def docall_addGame(self, args):
         def checkFailed(reason):
             return defer.fail(
-                    bsonlib.Fault(
-                            NOT_ACCEPTABLE,
-                            reason.getErrorMessage()
+                    Fault(
+                          NOT_ACCEPTABLE,
+                          reason.getErrorMessage()
                    )
             )
 
@@ -87,35 +93,35 @@ class Protocol4(bsonlib.Server):
         return d
 
 
-    def do_addPlayer(self, args):
+    def docall_addPlayer(self, args):
         if not self.game:
             return defer.fail(
-                    bsonlib.Fault(NO_GAME, 'Create a game first!')
+                    Fault(NO_GAME, 'Create a game first!')
             )
 
         if self.game['currentPlayers'] == self.game['maxPlayers']:
             return defer.fail(
-                    bsonlib.Fault(GAME_IS_FULL, 'Game is Full.')
+                    Fault(GAME_IS_FULL, 'Game is Full.')
             )
         else:
             self.game['currentPlayers'] += 1
             return defer.succeed('Player added.')
 
 
-    def do_removePlayer(self, args):
+    def docall_delPlayer(self, args):
         if not self.game:
             return defer.fail(
-                    bsonlib.Fault(NO_GAME, 'Create a game first!')
+                    Fault(NO_GAME, 'Create a game first!')
             )
 
         self.game['currentPlayers'] -= 1
         return defer.succeed('Player removed.')
 
 
-    def do_removeGame(self, args=None):
+    def docall_delGame(self, args=None):
         if not self.game:
             return defer.fail(
-                    bsonlib.Fault(NO_GAME, 'Create a game first!')
+                    Fault(NO_GAME, 'Create a game first!')
             )
 
         self.gameDB.removeGame(self.game)
@@ -124,7 +130,7 @@ class Protocol4(bsonlib.Server):
         return defer.succeed('Game removed')
 
 
-    def do_list(self, args):
+    def docall_list(self, args):
         result = {'count': len(self.gameDB), 'list': []}
 
         for game in self.gameDB.itervalues():
