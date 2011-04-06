@@ -31,6 +31,13 @@ if os.path.exists(os.path.join(os.path.dirname(sys.argv[0]), os.pardir, 'wzlobby
     sys.path.insert(0, os.path.join(os.path.dirname(sys.argv[0]), os.pardir))
 ### END library location
 
+# Get the right reactor (asuming that we have a 2.6 kernel on linux)
+from platform import system as platformSystem
+if platformSystem == 'Linux':
+    from twisted.internet import epollreactor
+    epollreactor.install()
+
+
 from twisted.application import service
 
 from wzlobby import server
