@@ -79,7 +79,7 @@ class GameDB(UserDict.IterableUserDict):
             FIXME: make that interval configurable!
         """
         if not game['host']:
-            return defer.succeed('Ignoring empty games in case of the 2.3 multiconnect bug')
+            return defer.succeed('Ignoring empty games in case of the 2.3 multiconnect bug.')
 
         hostname = game['description'].lower().split(' ')
         if not self.settings.badwords.isdisjoint(hostname):
@@ -109,7 +109,7 @@ class GameDB(UserDict.IterableUserDict):
         def removeGame(failure):
             self.removeGame(game)
 
-            return defer.fail(Exception('Game unreachable, failed to open a connection to port %d' % game['port']))
+            return defer.fail(Exception('Game unreachable, failed to open a connection to port %d.' % game['port']))
 
         d = testConnect(game['host'], game['port'])
         d.addErrback(removeGame)

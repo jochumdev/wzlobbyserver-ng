@@ -9,16 +9,16 @@ motd_default = "Welcome to Warzone! Your game is now listed in the lobby server.
 motd = (
         (
             StrictVersion('9.9.9'),
-            motd_default,         
-        ),        
-        (
-            StrictVersion('2.3.6'),
-            "Please upgrade your Warzone to 2.3.7! See wz2100.net.",
+            motd_default,
         ),
         (
-            StrictVersion('2.2'), 
+            StrictVersion('2.3.6'),
+            "Please upgrade your Warzone to 2.3.7! See http://wz2100.net.",
+        ),
+        (
+            StrictVersion('2.2'),
             "This server will not support your version of Warzone much longer!\n Please upgrade your game.  See www.wz2100.net.",
-        ),        
+        ),
 )
 
 ipbans = set()
@@ -32,11 +32,11 @@ def getMotd(version):
         version = StrictVersion(version)
     except ValueError:
         return motd_default
-    
+
     for k, v in motd:
         if version <= k:
             bestMatch = v
-            
+
     return bestMatch
 
 if __name__ == '__main__':
