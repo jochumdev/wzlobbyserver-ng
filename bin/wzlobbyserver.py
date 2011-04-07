@@ -1,4 +1,4 @@
-#!/usr/bin/twistd -y
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 # vim: set et sts=4 sw=4 encoding=utf-8:
 #
@@ -46,3 +46,10 @@ server.main()
 
 application = service.Application('wzlobbyserver')
 server.makeService().setServiceParent(application)
+
+if __name__ == '__main__':
+    argv = sys.argv[1:]
+    sys.argv = [__file__, '-y', __file__]
+    sys.argv.extend(argv)
+    from twisted.scripts.twistd import run
+    run()
