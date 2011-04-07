@@ -5,15 +5,19 @@ from distutils.version import StrictVersion
 
 #### START Settings ####
 
+debug = False
+
+check_interval = 10
+
 motd_default = "Welcome to Warzone! Your game is now listed in the lobby server."
 motd = (
         (
-            StrictVersion('9.9.9'),
+            StrictVersion('999.9.9'),
             motd_default,
         ),
         (
-            StrictVersion('2.3.6'),
-            "Please upgrade your Warzone to 2.3.7! See http://wz2100.net.",
+            StrictVersion('2.3.0'),
+            "Please upgrade your Warzone to 2.3.7! See http://wz2100.net. Your game is now listed in the lobby server.",
         ),
         (
             StrictVersion('2.2'),
@@ -23,7 +27,7 @@ motd = (
 
 ipbans = set()
 
-badwords = set(('fuck', 'asshole', 'shit',))
+badwords = set()
 
 #### END OF Settings ####
 

@@ -22,16 +22,42 @@
 
 __all__ = ['Game']
 
-import UserDict
+from UserDict import IterableUserDict
 
-class Game(UserDict.IterableUserDict):
+class Game(IterableUserDict):
+    # Translation table for incoming data
+    dataTypes = {'host'        :   'string',
+                 'port'        :   'int',
+                 'description' :   'string',
+                 'currentPlayers': 'int',
+                 'maxPlayers'  :   'int',
+                 'lobbyVer'    :   'int',
+                 'multiVer'    :   'string',
+                 'wzVerMajor'  :   'int',
+                 'wzVerMinor'  :   'int',
+                 'isPure'      :   'bool',
+                 'isPrivate'   :   'bool',
+                 'gameId'      :   'int',
+                 'mods'        :   'int',
+                 'modlist'     :   'string',
 
-    # Internal store for the LoopingCall C{check>wzlobby.gamedb.gameDB.checkGame}
-    lCall = None
+                 # Since 2.3.6
+                 'mapname'     :   'string',
+                 'hostplayer'  :   'string',
 
-    # These are the defaults for a new game
-    # from 2.3 source
-    data = {'host'              :   None, # Our clients IP Address 
+                 # For Lobby Ver 3
+                 'gStructVer'  :   'int',
+                }
+
+
+    def __init__(self, lobbyVer, gameId):
+        # Internal store for the LoopingCall C{check>wzlobby.gamedb.gameDB.check}
+        self.lCall = None
+
+        # These are the defaults for a new game
+        # from 2.3 source
+        self.data = {
+            'host'              :   None, # Our clients IP Address 
             'port'              :   0, # Gamehost port for clients
             'description'       :   None,
             'currentPlayers'    :   0,
@@ -52,37 +78,11 @@ class Game(UserDict.IterableUserDict):
 
             # For Lobby Ver 3
             'gStructVer'        :   3,
-            }
 
-    # Translation table for incoming data
-    dataTypes = {'host'        :   'string',
-                 'port'        :   'int',
-                 'description' :   'string',
-                 'currentPlayers': 'int',
-                 'maxPlayers'  :   'int',
-                 'lobbyVer'    :   'int',
-                 'multiVer'    :   'string',
-                 'wzVerMajor'  :   'int',
-                 'wzVerMinor'  :   'int',
-                 'isPure'      :   'bool',
-                 'isPrivate'   :   'bool',
-                 'gameId'      :   'int',
-                 'mods'        :   'int',
-                 'modlist'     :   'string',
-
-                 # Since 2.3.6
-                 'mapname'     :   u'',
-                 'hostplayer'  :   u'',
-
-                 # For Lobby Ver 3
-                 'gStructVer'  :   'int',
-                }
-
-
-    def __init__(self, lobbyVer, gameId):
-        self.data['lobbyVer'] = lobbyVer
-        self.data['gameId'] = gameId
-
+            # Constructor vars
+            'lobbyVer'          :   lobbyVer,
+            'gameId'            :   gameId,
+        }
 
     def __setitem__(self, k, v):
         """ Setter for self.data[k] 

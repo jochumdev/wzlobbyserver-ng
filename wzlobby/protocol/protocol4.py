@@ -33,7 +33,6 @@ GAME_IS_FULL = -404
 WRONG_LOGIN = -405
 
 class Protocol4(SocketRPCProtocol):
-
     game = None
 
     lobbyVersion = 4
@@ -42,7 +41,6 @@ class Protocol4(SocketRPCProtocol):
         SocketRPCProtocol.connectionMade(self)
 
         self.gameDB = self.factory.gameDB
-        self.settings = self.factory.settings
 
 
     def connectionLost(self, reason):
@@ -52,7 +50,7 @@ class Protocol4(SocketRPCProtocol):
         SocketRPCProtocol.connectionLost(self, reason)
 
         if self.game:
-            self.gameDB.removeGame(self.game)
+            self.gameDB.remove(self.game)
 
 
     def docall_addGame(self, args):
@@ -66,7 +64,7 @@ class Protocol4(SocketRPCProtocol):
 
 
         def checkDone(result):
-            self.gameDB.registerGame(game)
+            self.gameDB.register(game)
             self.game = game
 
             return {'gameId': self.game['gameId'],
@@ -74,7 +72,7 @@ class Protocol4(SocketRPCProtocol):
                    }
 
 
-        game = self.gameDB.createGame(self.lobbyVersion)
+        game = self.gameDB.create(self.lobbyVersion)
 
         # Update the game with the received data        
         for k, v in args.iteritems():
@@ -124,7 +122,7 @@ class Protocol4(SocketRPCProtocol):
                     Fault(NO_GAME, 'Create a game first!')
             )
 
-        self.gameDB.removeGame(self.game)
+        self.gameDB.remove(self.game)
         self.game = None
 
         return defer.succeed('Game removed')

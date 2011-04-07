@@ -24,13 +24,15 @@ __all__ = ['Protocol3']
 
 from twisted.python import log
 from twisted.internet import defer, protocol
+from twisted.python.failure import Failure
 
 import struct
 from itertools import izip
 
+from wzlobby import settings
+
 SUCCESS_OK = 200
 CLIENT_ERROR_NOT_ACCEPTABLE = 406
-
 
 def encodeCString(string, buf_len):
     # If we haven't got a string return an empty one
@@ -42,9 +44,6 @@ def encodeCString(string, buf_len):
 
 class Protocol3(protocol.Protocol):
     """Warzone 2100 Lobby Protocol for (may 2.2) and  2.3 Clients"""
-
-    # Status codes for self._sendStatusMessage
-    debug = False
 
     # Needed all over
     lobbyVersion = 3
@@ -123,7 +122,6 @@ class Protocol3(protocol.Protocol):
 
     def connectionMade(self):
         self.gameDB = self.factory.gameDB
-        self.settings = self.factory.settings
 
 
     def connectionLost(self, reason):
@@ -131,7 +129,7 @@ class Protocol3(protocol.Protocol):
         closed its connection.
         """
         if self.game:
-            self.gameDB.removeGame(self.game)
+            self.gameDB.remove(self.game)
 
 
     def dataReceived(self, data):
@@ -150,9 +148,13 @@ class Protocol3(protocol.Protocol):
 
             elif len(data) == self.gameStructSize:
                 cmd = 'do_updateGame'
+
             else:
-                cmd = 'do_%s' % data[:4].lower()
-                data = data[5:]
+                try:
+                    cmd = 'do_%s' % data[:4].lower()
+                    data = data[5:]
+                except AttributeError:
+                    pass
 
         else:
             cmd = self.waitData
@@ -160,14 +162,14 @@ class Protocol3(protocol.Protocol):
 
         # Try to execute that command
         try:
-            if self.debug:
-                log.msg('%s: Executing' % cmd)
+            log.msg('executing %s' % cmd)
 
             func = getattr(self, cmd)
             if not func(data):
                 log.msg('%s: Failed' % cmd)
                 self.transport.loseConnection()
         except AttributeError, e:
+            log.err(e)
             log.msg('Got an unknown command "%s"' % cmd)
         except Exception, e:
             self._logException(e)
@@ -187,16 +189,8 @@ class Protocol3(protocol.Protocol):
         encodeGame = self._encodeGame
         write = self.transport.write
 
-        # Generate a chained deferred
-        d = defer.Deferred()
         for game in self.gameDB.itervalues():
-            d.addCallback(lambda ign: encodeGame(game)).addCallback(lambda x: write(x))
-
-        # add an error handler
-        d.addErrback(self._logException)
-
-        # and run the generated defered
-        d.callback('')
+            write(encodeGame(game))
 
         return True
 
@@ -208,7 +202,7 @@ class Protocol3(protocol.Protocol):
         to the client.
         """
 
-        self.game = self.gameDB.createGame(self.lobbyVersion)
+        self.game = self.gameDB.create(self.lobbyVersion, True)
         self.transport.write(struct.pack('!I', int(self.game.get('gameId'))))
 
         return True
@@ -217,25 +211,16 @@ class Protocol3(protocol.Protocol):
     def do_addg(self, data=None):
         """ I check the games connectivity and send a status message.
         """
-        def checkFailed(reason):
-            self._sendStatusMessage(
-                CLIENT_ERROR_NOT_ACCEPTABLE,
-                reason.getErrorMessage()
-            )
-            self.transport.loseConnection()
+        if data:
+            self.do_updateGame(data)
 
-        def checkDone(result):
-            self._sendStatusMessage(
-                SUCCESS_OK,
-                result,
-            )
-
-
-        self.do_updateGame(data)
+            log.msg('new game %d: "%s" from "%s".' % (self.game['gameId'],
+                                                      self.game['description'],
+                                                      self.game['hostplayer']))
 
         d = self.gameDB.check(self.game)
-        d.addCallback(checkDone)
-        d.addErrback(checkFailed)
+        d.addCallback(self._sendStatusMessage, SUCCESS_OK)
+        d.addErrback(self._sendStatusMessage, CLIENT_ERROR_NOT_ACCEPTABLE)
 
         return True
 
@@ -246,8 +231,9 @@ class Protocol3(protocol.Protocol):
         """
 
         try:
-            # Extract the data from the gamestruct
+            # Extract the data from the gamestruct            
             data = self.gameStruct.unpack(data)
+
             # Create a dict from it while using self.gameStructVars as keys 
             data = dict(izip(self.gameStructVars, data))
 
@@ -263,19 +249,19 @@ class Protocol3(protocol.Protocol):
             data['port'] = self.gamePort
 
         except struct.error:
+            log.err('Can\'t unpack the incoming GAMESTRUCT')
             return False
 
         # Now update the game
         self.gameDB.updateGame(data['gameId'], data)
 
-        # Fix for bogus clients (<=2.3.7) which connect twice
         if not self.game:
-            self.game = self.gameDB.get(data['gameId'], None)
+            self.game = self.gameDB.get(data['gameId'])
 
         return True
 
 
-    def _sendStatusMessage(self, code, message):
+    def _sendStatusMessage(self, message, code):
         """ I send a status message to the game host
             Format    (unsigned int)<message length>
                       (unsigned int)<response code>
@@ -284,7 +270,11 @@ class Protocol3(protocol.Protocol):
             I close the connection when struct.pack fails.
         """
 
-        log.msg('Sending %d:%s' % (code, message))
+        if isinstance(message, Failure):
+            message = message.getErrorMessage()
+
+        if settings.debug:
+            log.msg('Sending %d:%s' % (code, message))
         try:
             d = defer.succeed(struct.pack('!II%ds' % len(message), code, len(message), str(message)))
             d.addCallback(lambda m: self.transport.write(m))
@@ -296,7 +286,7 @@ class Protocol3(protocol.Protocol):
     def _encodeGame(self, game):
         """ I return the Network byte string for a game.
         
-        @see: WZLobbyProtocol3.gameStructVars
+        @see: Protocol3.gameStructVars
         """
         vars = [game['gStructVer'],
                 encodeCString(game['description'], self.gameStructCharSizes['description']),

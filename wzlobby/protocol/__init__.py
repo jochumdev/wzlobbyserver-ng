@@ -27,6 +27,8 @@ from twisted.internet import protocol
 
 import struct
 
+from wzlobby import settings
+
 from wzlobby.protocol.protocol3 import Protocol3
 from wzlobby.protocol.protocol4 import Protocol4
 
@@ -35,32 +37,28 @@ class ProtocolSwitcher(protocol.Protocol):
     the protocol.
     TODO: i'm a proxy but i wanna replace the protocol!
     """
-    
+
     protocol = None
-    
-    debug = False
-    
+
     def connectionMade(self):
         """" I reject ip bans. """
-        
-        self.debug = self.factory.noisy
-        
-        if self.transport.getPeer().host in self.factory.settings.ipbans:
+
+        if self.transport.getPeer().host in settings.ipbans:
             self.transport.loseConnection()
-            
-            
+
+
     def connectionLost(self, reason):
         if self.protocol:
-            self.protocol.connectionLost(reason)     
-    
-    
+            self.protocol.connectionLost(reason)
+
+
     def dataReceived(self, data):
         if self.protocol:
             self.protocol.dataReceived(data)
-            
+
         else:
             isV3 = False
-            
+
             # Try to detect the protocol
             version = self._detectProtocolVersion(data)
             if version != False:
@@ -75,24 +73,23 @@ class ProtocolSwitcher(protocol.Protocol):
                 # Detection failed assume v3
                 self.protocol = Protocol3()
                 isV3 = True
-                
-    
+
+
             self.transport.logstr = "%s,%s,%s" % (self.protocol.__class__.__name__,
                                         self.transport.sessionno,
-                                        self.transport.hostname)            
-            
-            self.protocol.debug = self.debug
+                                        self.transport.hostname)
+
             self.protocol.factory = self.factory
             self.protocol.makeConnection(self.transport)
             if isV3:
                 self.protocol.dataReceived(data)
             elif len(data) > 12:
                 self.protocol.dataReceived(data[12:])
-                
+
             # Now switch the protocol
             # self.transport.protocol = self.protocol
-        
-            
+
+
     def _detectProtocolVersion(self, data):
         """ I detect a "version\0<version#>" Packet
         """
@@ -102,6 +99,6 @@ class ProtocolSwitcher(protocol.Protocol):
                 return data[1]
             else:
                 return False
-            
+
         except struct.error:
             return False

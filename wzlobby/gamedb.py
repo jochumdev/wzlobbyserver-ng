@@ -28,46 +28,50 @@ from twisted.internet import defer
 from twisted.python import log
 from twisted.internet.task import LoopingCall
 
-import UserDict
+from UserDict import IterableUserDict
 
 from wzlobby.game import Game
 from wzlobby.tools import testConnect
+from wzlobby import settings
 
-class GameDB(UserDict.IterableUserDict):
+class GameDB(IterableUserDict):
 
-    def __init__(self, settings):
-        self.settings = settings
+    def __init__(self):
         self.data = {}
-
         self.numgen = iterCount(1)
 
 
-    def createGame(self, lobbyVer):
-        gameId = self.numgen.next()
+    def create(self, lobby_ver, register=False):
+        game_id = self.numgen.next()
 
-        game = Game(lobbyVer, gameId)
-        log.msg('Created game: %d' % gameId)
+        game = Game(lobby_ver, game_id)
+        if settings.debug:
+            log.msg('Created game: %d' % game_id)
+
+        if register:
+            self.register(game)
 
         return game
 
 
-    def registerGame(self, game):
+    def register(self, game):
         self.data[game['gameId']] = game
 
 
-    def updateGame(self, gameId, data):
-        if not gameId in self.data:
+    def updateGame(self, game_id, infos):
+        if not game_id in self.data:
+            log.err('Unknown game %s' % game_id)
             return False
 
-        self.data[gameId].update(data)
+        self.data[game_id].update(infos)
 
         return True
 
 
-    def removeGame(self, game):
-        log.msg('Removing game: %d' % game['gameId'])
+    def remove(self, game):
         try:
             del(self.data[game['gameId']])
+            log.msg('Removed game: %d' % game['gameId'])
         except KeyError:
             return False
 
@@ -75,14 +79,13 @@ class GameDB(UserDict.IterableUserDict):
 
 
     def check(self, game):
-        """ Starts a loop which checks the given game every 10 seconds
-            FIXME: make that interval configurable!
+        """ Starts a loop which checks the given game every settings.check_interval seconds
         """
         if not game['host']:
-            return defer.succeed('Ignoring empty games in case of the 2.3 multiconnect bug.')
+            return defer.fail(Exception('Ignoring empty games.'))
 
         hostname = game['description'].lower().split(' ')
-        if not self.settings.badwords.isdisjoint(hostname):
+        if not settings.badwords.isdisjoint(hostname):
             log.msg('Game name not acceptable.')
             return defer.fail(Exception('Game name not acceptable. The game is NOT hosted, change the name of your game.'))
 
@@ -90,13 +93,14 @@ class GameDB(UserDict.IterableUserDict):
             game.lCall.stop()
 
         d = self._check(game)
-        d.addCallback(lambda x: self.settings.getMotd(game['multiVer']))
+        d.addCallback(lambda x: settings.getMotd(game['multiVer']))
 
         # Start the loopingcall
-        game.lCall = LoopingCall(self._check, game)
-        d2 = game.lCall.start(10, now=False)
-        # Ignore future errors on the LoopingCall
-        d2.addErrback(lambda x: '')
+        if not game.lCall:
+            game.lCall = LoopingCall(self._check, game)
+            d2 = game.lCall.start(settings.check_interval, now=False)
+            # Ignore future errors on the LoopingCall
+            d2.addErrback(lambda x: '')
 
         return d
 
@@ -106,12 +110,11 @@ class GameDB(UserDict.IterableUserDict):
         
         returns a C{twisted.internet.defer.Deferred} 
         """
-        def removeGame(failure):
-            self.removeGame(game)
-
+        def remove(failure):
+            self.remove(game)
             return defer.fail(Exception('Game unreachable, failed to open a connection to port %d.' % game['port']))
 
         d = testConnect(game['host'], game['port'])
-        d.addErrback(removeGame)
+        d.addErrback(remove)
 
         return d

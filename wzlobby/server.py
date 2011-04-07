@@ -43,8 +43,7 @@ def makeService():
     f = protocol.ServerFactory()
     f.protocol = ProtocolSwitcher
     f.clients = []
-    f.gameDB = GameDB(settings)
-    f.settings = settings
+    f.gameDB = GameDB()
     h = internet.TCPServer(9990, f).setServiceParent(s)
-    
+
     return s
