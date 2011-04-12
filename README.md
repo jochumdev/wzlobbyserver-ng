@@ -21,6 +21,8 @@ TODO
 Requirements
 -----------
 * Twisted >=10.1
+* socketrpc >=0.0.2
+* pymongo (for bson)
 
 Installation
 -----------
