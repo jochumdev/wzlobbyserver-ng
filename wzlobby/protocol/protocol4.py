@@ -25,6 +25,8 @@ __all__ = ['Protocol4']
 from twisted.internet import defer
 from socketrpc.twisted_srpc import SocketRPCProtocol, set_serializer, Fault
 
+from wzlobby import settings
+
 set_serializer('bson')
 
 NO_GAME = -402
@@ -40,20 +42,11 @@ class Protocol4(SocketRPCProtocol):
     def connectionMade(self):
         SocketRPCProtocol.connectionMade(self)
 
+        self.debug = settings.debug
         self.gameDB = self.factory.gameDB
 
 
-    def connectionLost(self, reason):
-        """ This will be called when the client
-        closed its connection.
-        """
-        SocketRPCProtocol.connectionLost(self, reason)
-
-        if self.game:
-            self.gameDB.remove(self.game)
-
-
-    def docall_addGame(self, args):
+    def docall_addGame(self, *args, **kwargs):
         def checkFailed(reason):
             return defer.fail(
                     Fault(
@@ -65,17 +58,14 @@ class Protocol4(SocketRPCProtocol):
 
         def checkDone(result):
             self.gameDB.register(game)
-            self.game = game
 
-            return {'gameId': self.game['gameId'],
-                    'motd': result,
-                   }
+            return [game['gameId'], result]
 
 
         game = self.gameDB.create(self.lobbyVersion)
 
         # Update the game with the received data        
-        for k, v in args.iteritems():
+        for k, v in kwargs.iteritems():
             try:
                 game[k] = v
             except KeyError:
@@ -91,47 +81,63 @@ class Protocol4(SocketRPCProtocol):
         return d
 
 
-    def docall_addPlayer(self, args):
-        if not self.game:
+    def docall_delGame(self, gameId):
+        game = self.gameDB.get(gameId, False)
+        if not game:
             return defer.fail(
-                    Fault(NO_GAME, 'Create a game first!')
+                    Fault(NO_GAME, 'Game %d does not exists' % gameId)
             )
 
-        if self.game['currentPlayers'] == self.game['maxPlayers']:
+        self.gameDB.remove(game)
+
+        return defer.succeed('')
+
+
+    def docall_addPlayer(self, gameId, slot, name):
+        game = self.gameDB.get(gameId, False)
+        if not game:
+            return defer.fail(
+                    Fault(NO_GAME, 'Game %d does not exists' % gameId)
+            )
+
+        if game['currentPlayers'] == game['maxPlayers']:
             return defer.fail(
                     Fault(GAME_IS_FULL, 'Game is Full.')
             )
-        else:
-            self.game['currentPlayers'] += 1
-            return defer.succeed('Player added.')
+
+        game['currentPlayers'] += 1
+        return defer.succeed('')
 
 
-    def docall_delPlayer(self, args):
-        if not self.game:
+    def docall_delPlayer(self, gameId, slot):
+        game = self.gameDB.get(gameId, False)
+        if not game:
             return defer.fail(
-                    Fault(NO_GAME, 'Create a game first!')
+                    Fault(NO_GAME, 'Game %d does not exists' % gameId)
             )
 
-        self.game['currentPlayers'] -= 1
-        return defer.succeed('Player removed.')
+        game['currentPlayers'] -= 1
+        return defer.succeed('')
 
 
-    def docall_delGame(self, args=None):
-        if not self.game:
-            return defer.fail(
-                    Fault(NO_GAME, 'Create a game first!')
-            )
-
-        self.gameDB.remove(self.game)
-        self.game = None
-
-        return defer.succeed('Game removed')
-
-
-    def docall_list(self, args):
-        result = {'count': len(self.gameDB), 'list': []}
-
+    def docall_list(self):
+        games = []
         for game in self.gameDB.itervalues():
-            result['list'].append(dict(game))
+            games.append({
+                "host"           : game["host"],
+                "port"           : game["port"],
+                "description"    : game["description"],
+                "currentPlayers" : game["currentPlayers"],
+                "maxPlayers"     : game["maxPlayers"],
+                "multiVer"       : game["multiVer"],
+                "wzVerMajor"     : game["wzVerMajor"],
+                "wzVerMinor"     : game["wzVerMinor"],
+                "isPure"         : game["isPure"],
+                "isPrivate"      : game["isPrivate"],
+                "mods"           : game["mods"],
+                "modlist"        : game["modlist"],
+                "mapname"        : game["mapname"],
+                "hostplayer"     : game["hostplayer"],
+            })
 
-        return defer.succeed(result)
+        return defer.succeed(games)
