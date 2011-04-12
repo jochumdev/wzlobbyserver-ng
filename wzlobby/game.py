@@ -62,8 +62,7 @@ class Game(IterableUserDict):
             'description'       :   None,
             'currentPlayers'    :   0,
             'maxPlayers'        :   0,
-            'lobbyVer'          :   0,
-            'multiVer'          :   0,
+            'multiVer'          :   '',
             'wzVerMajor'        :   0,
             'wzVerMinor'        :   0,
             'isPure'            :   True,
@@ -90,7 +89,7 @@ class Game(IterableUserDict):
         """
         type = self.dataTypes[k]
         if type == 'string':
-            self.data[k] = unicode(v).strip("\0")
+            self.data[k] = unicode(v, 'utf8').strip("\0")
         elif type == 'int':
             self.data[k] = int(v)
         elif type == 'bool':

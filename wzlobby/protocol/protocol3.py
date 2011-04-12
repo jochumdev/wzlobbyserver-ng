@@ -39,7 +39,7 @@ def encodeCString(string, buf_len):
     if not string:
         return str('\0' * buf_len)
 
-    return str(string[:buf_len - 1].ljust(buf_len, "\0"))
+    return str(string[:buf_len - 1].ljust(buf_len, "\0").encode('utf8'))
 
 
 class Protocol3(protocol.Protocol):
@@ -190,6 +190,9 @@ class Protocol3(protocol.Protocol):
         write = self.transport.write
 
         for game in self.gameDB.itervalues():
+            if not game['host']:
+                continue
+
             write(encodeGame(game))
 
         return True
@@ -215,8 +218,8 @@ class Protocol3(protocol.Protocol):
             self.do_updateGame(data)
 
             log.msg('new game %d: "%s" from "%s".' % (self.game['gameId'],
-                                                      self.game['description'],
-                                                      self.game['hostplayer']))
+                                                      self.game['description'].encode('utf8'),
+                                                      self.game['hostplayer'].encode('utf8')))
 
         d = self.gameDB.check(self.game)
         d.addCallback(self._sendStatusMessage, SUCCESS_OK)
