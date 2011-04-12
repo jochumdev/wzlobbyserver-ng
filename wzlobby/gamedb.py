@@ -81,7 +81,7 @@ class GameDB(IterableUserDict):
     def check(self, game):
         """ Starts a loop which checks the given game every settings.check_interval seconds
         """
-        if not game['host']:
+        if game['host'] is None or game['description'] is None:
             return defer.fail(Exception('Ignoring empty games.'))
 
         hostname = game['description'].lower().split(' ')
