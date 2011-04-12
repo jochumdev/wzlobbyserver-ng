@@ -43,6 +43,9 @@ class ProtocolSwitcher(protocol.Protocol):
     def connectionMade(self):
         """" I reject ip bans. """
 
+        if settings.debug:
+            log.msg('New connection from %s' % self.transport.getPeer().host)
+
         if self.transport.getPeer().host in settings.ipbans:
             self.transport.loseConnection()
 
@@ -96,7 +99,9 @@ class ProtocolSwitcher(protocol.Protocol):
         try:
             data = struct.unpack('!8sI', data[0:12])
             if data[0] == "version\0":
-                return data[1]
+                if settings.debug:
+                    log.msg('using protocol %d' % int(data[1]))
+                return int(data[1])
             else:
                 return False
 
