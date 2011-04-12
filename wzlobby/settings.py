@@ -16,8 +16,8 @@ motd = (
             motd_default,
         ),
         (
-            StrictVersion('2.3.0'),
-            "Please upgrade your Warzone to 2.3.7! See http://wz2100.net. Your game is now listed in the lobby server.",
+            StrictVersion('2.3.6'),
+            "Your game is now listed in the lobby server. Please upgrade your Warzone to 2.3.7! See http://wz2100.net.",
         ),
         (
             StrictVersion('2.2'),
