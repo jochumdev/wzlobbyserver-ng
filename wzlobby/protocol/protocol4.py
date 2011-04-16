@@ -32,8 +32,7 @@ set_serializer('bson')
 
 NO_GAME = -402
 NOT_ACCEPTABLE = -403
-GAME_IS_FULL = -404
-WRONG_LOGIN = -405
+WRONG_LOGIN = -404
 
 class Protocol4(SocketRPCProtocol):
     game = None
@@ -98,16 +97,11 @@ class Protocol4(SocketRPCProtocol):
         return defer.succeed('')
 
 
-    def docall_addPlayer(self, gameId, slot, name):
+    def docall_addPlayer(self, gameId, slot, name, ipaddress):
         game = self.gameDB.get(gameId, False)
         if not game:
             return defer.fail(
                     Fault(NO_GAME, 'Game %d does not exists' % gameId)
-            )
-
-        if game['currentPlayers'] == game['maxPlayers']:
-            return defer.fail(
-                    Fault(GAME_IS_FULL, 'Game is Full.')
             )
 
         game['currentPlayers'] += 1
@@ -122,6 +116,10 @@ class Protocol4(SocketRPCProtocol):
             )
 
         game['currentPlayers'] -= 1
+        return defer.succeed('')
+
+
+    def docall_updatePlayer(self, gameId, slot, name):
         return defer.succeed('')
 
 
