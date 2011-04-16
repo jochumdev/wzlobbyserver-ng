@@ -89,7 +89,10 @@ class Game(IterableUserDict):
         """
         type = self.dataTypes[k]
         if type == 'string':
-            self.data[k] = unicode(v, 'utf8').strip("\0")
+            if isinstance(v, str):
+                self.data[k] = unicode(v, 'utf8').strip("\0")
+            else:
+                self.data[k] = v.strip("\0")
         elif type == 'int':
             self.data[k] = int(v)
         elif type == 'bool':
