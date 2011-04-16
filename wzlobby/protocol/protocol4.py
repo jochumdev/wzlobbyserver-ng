@@ -23,6 +23,7 @@
 __all__ = ['Protocol4']
 
 from twisted.internet import defer
+from twisted.python import log
 from socketrpc.twisted_srpc import SocketRPCProtocol, set_serializer, Fault
 
 from wzlobby import settings
@@ -58,6 +59,10 @@ class Protocol4(SocketRPCProtocol):
 
         def checkDone(result):
             self.gameDB.register(game)
+
+            log.msg('new game %d: "%s" from "%s".' % (game['gameId'],
+                                                      game['description'].encode('utf8'),
+                                                      game['hostplayer'].encode('utf8')))
 
             return [game['gameId'], result]
 
@@ -132,9 +137,7 @@ class Protocol4(SocketRPCProtocol):
                 "multiVer"       : game["multiVer"],
                 "wzVerMajor"     : game["wzVerMajor"],
                 "wzVerMinor"     : game["wzVerMinor"],
-                "isPure"         : game["isPure"],
                 "isPrivate"      : game["isPrivate"],
-                "mods"           : game["mods"],
                 "modlist"        : game["modlist"],
                 "mapname"        : game["mapname"],
                 "hostplayer"     : game["hostplayer"],
