@@ -123,7 +123,9 @@ class Protocol4(SocketRPCProtocol):
         return defer.succeed('')
 
 
-    def docall_list(self):
+    def docall_list(self, maxgames=9999):
+        maxgames = int(maxgames);
+
         games = []
         for game in self.gameDB.itervalues():
             games.append({
@@ -140,5 +142,9 @@ class Protocol4(SocketRPCProtocol):
                 "mapname"        : game["mapname"],
                 "hostplayer"     : game["hostplayer"],
             })
+
+            maxgames -= 1
+            if maxgames == 0:
+                break;
 
         return defer.succeed(games)
