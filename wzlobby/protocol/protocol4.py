@@ -128,6 +128,10 @@ class Protocol4(SocketRPCProtocol):
 
         games = []
         for game in self.gameDB.itervalues():
+            # Skip empty games.
+            if not game['description']:
+                continue
+
             games.append({
                 "host"           : game["host"],
                 "port"           : game["port"],
