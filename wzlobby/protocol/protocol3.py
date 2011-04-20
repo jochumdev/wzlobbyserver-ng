@@ -26,6 +26,7 @@ from twisted.python import log
 from twisted.internet import defer, protocol
 from twisted.python.failure import Failure
 
+from copy import deepcopy
 import struct
 from itertools import izip
 
@@ -183,14 +184,18 @@ class Protocol3(protocol.Protocol):
                    
         May closes the connection on errors.
         """
-        self.transport.write(struct.pack('!I', len(self.gameDB)))
+        # Work with a copy of the gameDB
+        games = deepcopy(self.gameDB)
 
         # Loop optimization        
         encodeGame = self._encodeGame
         write = self.transport.write
 
-        for game in self.gameDB.itervalues():
-            if not game['host']:
+        write(struct.pack('!I', len(games)))
+
+        for game in games:
+            # Skip empty games.
+            if not game['description']:
                 continue
 
             write(encodeGame(game))
