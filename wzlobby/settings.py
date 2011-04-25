@@ -29,6 +29,24 @@ ipbans = set()
 
 badwords = set()
 
+login_required = False
+
+token_length = 32
+token_expires = 31
+
+# Forum DB for Auth
+phpbb_host = "localhost"
+phpbb_db = "warzone_forums"
+phpbb_user = ""
+phpbb_pass = ""
+phpbb_table = "phpbb3_users"
+
+# DB for the lobby.
+lobby_host = phpbb_host
+lobby_db = "warzone_lobby"
+lobby_user = phpbb_user
+lobby_pass = phpbb_pass
+
 #### END OF Settings ####
 
 def getMotd(version):

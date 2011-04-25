@@ -26,6 +26,7 @@ from twisted.python import log
 
 from wzlobby.protocol import ProtocolSwitcher
 from wzlobby.gamedb import GameDB
+from wzlobby.database import Database
 from wzlobby import settings
 
 import signal
@@ -44,6 +45,7 @@ def makeService():
     f.protocol = ProtocolSwitcher
     f.clients = []
     f.gameDB = GameDB()
+    f.db = Database()
     h = internet.TCPServer(9990, f).setServiceParent(s)
 
     return s

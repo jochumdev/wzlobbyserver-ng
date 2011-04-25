@@ -33,6 +33,7 @@ set_serializer('bson')
 NO_GAME = -402
 NOT_ACCEPTABLE = -403
 WRONG_LOGIN = -404
+LOGIN_REQUIRED = -405
 
 class Protocol4(SocketRPCProtocol):
     game = None
@@ -44,6 +45,55 @@ class Protocol4(SocketRPCProtocol):
 
         self.debug = settings.debug
         self.gameDB = self.factory.gameDB
+        self.db = self.factory.db
+
+        self.authenticated = False
+
+
+    def dispatch_call(self, method, id, args, kwargs):
+        if not self.authenticated \
+          and settings.login_required \
+          and method != 'login':
+            return defer.fail(
+                    Fault(LOGIN_REQUIRED, "Please login first!")
+            )
+
+        return SocketRPCProtocol.dispatch_call(self, method, id, args, kwargs)
+
+
+    def docall_login(self, username, password=None, token=None):
+        def check_pass_cb(result):
+            if result == False:
+                log.msg('Password login for %s failed.' % username)
+                return defer.fail(
+                        Fault(WRONG_LOGIN, "Password login failed, unknown user or wrong password!")
+                )
+
+            # Login ok
+            self.authenticated = True
+
+            return self.db.get_user_token(username)
+
+        def check_token_cb(result):
+            if result == False:
+                log.msg('Token login for %s failed.' % username)
+                return defer.fail(
+                        Fault(WRONG_LOGIN, "Token login failed, unknown user or wrong password!")
+                )
+
+            # Token login ok
+            self.authenticated = True
+
+            return result
+
+        if token is None:
+            d = self.db.check_user_password(username, password)
+            d.addCallback(check_pass_cb)
+        else:
+            d = self.db.check_user_token(username, token)
+            d.addCallback(check_token_cb)
+
+        return d
 
 
     def docall_addGame(self, *args, **kwargs):

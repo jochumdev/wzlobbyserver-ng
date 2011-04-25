@@ -23,10 +23,13 @@ Requirements
 * Twisted >=10.1
 * socketrpc >=0.0.2
 * pymongo (for bson)
+* txpostgres - https://github.com/wulczer/txpostgres
+* phpass - https://github.com/exavolt/python-phpass
 
 Installation
 -----------
 * clone this repository
+* Import the lobby db: $sudo postgres psql warzone_lobby < ./data/lobby.sql
 * edit wzlobby/settings.py for your needs
 
 Basic usage:
@@ -36,6 +39,10 @@ start
 
     cd <your clone>
     ./bin/wzlobbyserver.py
+    
+or in console:
+
+	./bin/wzlobbyserver.py -n
 
 stop
 ----
