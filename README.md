@@ -30,6 +30,7 @@ Installation
 -----------
 * clone this repository
 * Import the lobby db: $sudo postgres psql warzone_lobby < ./data/lobby.sql
+* copy wzlobby/settings.py.dist to wzlobby/settings.py
 * edit wzlobby/settings.py for your needs
 
 Basic usage:
