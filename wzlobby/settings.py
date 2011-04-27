@@ -29,10 +29,13 @@ ipbans = set()
 
 badwords = set()
 
-login_required = False
+login_required = True
 
 token_length = 32
-token_expires = 31
+token_lifetime = 31
+
+session_length = 16
+session_lifetime = 86400
 
 # Forum DB for Auth
 phpbb_host = "localhost"
@@ -46,6 +49,9 @@ lobby_host = phpbb_host
 lobby_db = "warzone_lobby"
 lobby_user = phpbb_user
 lobby_pass = phpbb_pass
+
+# Remove old tokens and sessions every x seconds
+cleanup_interval = 43200
 
 #### END OF Settings ####
 

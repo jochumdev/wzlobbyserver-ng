@@ -20,6 +20,10 @@
 #
 ###############################################################################
 
+from twisted.internet import defer, reactor
+from twisted.python import log
+from twisted.internet.task import LoopingCall
+
 from txpostgres import txpostgres
 from phpass import PasswordHash
 
@@ -45,14 +49,26 @@ class Database(object):
                                   user=settings.lobby_user,
                                   password=settings.lobby_pass)
 
+        # Start the cleanup interval.
+        self._cleanup_call = LoopingCall(self._cleanup)
+        self._cleanup_call.start(settings.cleanup_interval, now=False)
+        # and run it once in 2 seconds.
+        reactor.callLater(2, self._cleanup)
 
-    def check_user_password(self, username, password):
+
+    def check_user_password(self, username, password, ip):
         def check_cb(result):
             if len(result) == 0:
                 # User Not found.
-                return False
+                return defer.fail(Exception())
 
-            return self.pw_check(password, result[0][0])
+            if (self.pw_check(password, result[0][0])):
+                return self._create_user_token(username, ip)
+            else:
+                return defer.fail(Exception())
+
+        if settings.debug:
+            log.msg("Checking the password from \"%s\"" % username)
 
         d = self._forums_conn.runQuery(
             "SELECT user_password FROM " + settings.phpbb_table + " WHERE username = %s AND user_inactive_reason = 0;",
@@ -63,47 +79,99 @@ class Database(object):
         return d
 
 
-    def check_user_token(self, username, token):
+    def check_user_token(self, username, token, ip):
         def check_cb(result):
             if len(result) == 0:
-                # User Not found, invalid token or token expired.
-                return False
+                # User token not found, invalid token or token expired.
+                return defer.fail(Exception())
 
-            return result[0][0]
-
-        d = self._lobby_conn.runQuery(
-            "SELECT token FROM tokens WHERE username = %s AND token = %s AND updated_at >= %s;",
-            (username,
-             token,
-             datetime.now() - timedelta(days=settings.token_expires),
+            # Update ip and extend token lifetime
+            self._lobby_conn.runOperation(
+                "UPDATE tokens set last_ip = %s WHERE username = %s AND token = %s;",
+                (ip, username, token)
             )
+
+            return {"token": result[0][0], "session":  self._create_session(username)}
+
+        def check_user_cb(result):
+            if len(result) == 0:
+                # User not found.
+                return defer.fail(Exception())
+
+            # Now check the token
+            d = self._lobby_conn.runQuery(
+                        "SELECT token FROM tokens WHERE username = %s AND token = %s AND updated_at >= %s;",
+                        (username,
+                         token,
+                         datetime.now() - timedelta(days=settings.token_lifetime),
+                        )
+            )
+            return d
+
+        if settings.debug:
+            log.msg("Checking user \"%s\", token \"%s\"" % (username, token))
+
+        # First check if the user is still valid.
+        d = self._forums_conn.runQuery(
+            "SELECT username FROM " + settings.phpbb_table + " WHERE username = %s AND user_inactive_reason = 0;",
+            (username,)
         )
+        d.addCallback(check_user_cb)
         d.addCallback(check_cb)
 
         return d
 
 
-    def get_user_token(self, username):
-        def check_cb(result):
-            if len(result) == 0:
-                # No token Found or Token expired, create a new one.
-                token = ''.join([choice(string.letters) for i in range(settings.token_length)])
-                self._lobby_conn.runOperation(
-                    "INSERT INTO tokens (username, token) VALUES (%s, %s)",
-                    (username, token,)
-                )
-
-                return token
-
-            # token found return it.
-            return result[0][0]
+    def check_user_session(self, username, session):
+        if settings.debug:
+            log.msg("Checking user \"%s\", session \"%s\"" % (username, session))
 
         d = self._lobby_conn.runQuery(
-            "SELECT token FROM tokens WHERE username = %s AND updated_at >= %s;",
+            "SELECT username FROM sessions WHERE username = %s AND session = %s AND created_at >= %s;",
             (username,
-             datetime.now() - timedelta(days=settings.token_expires),
+             session,
+             datetime.now() - timedelta(seconds=settings.session_lifetime),
             )
         )
-        d.addCallback(check_cb)
+        d.addCallback(lambda x: len(x) == 1)
 
         return d
+
+
+    def _create_user_token(self, username, ip):
+        token = ''.join([choice(string.letters) for i in range(settings.token_length)])
+        self._lobby_conn.runOperation(
+            "INSERT INTO tokens (username, token last_ip) VALUES (%s, %s, %s, %s)",
+            (username, token, ip)
+        )
+
+        if settings.debug:
+            log.msg("Created token \"%s\" for user \"%s\"" % (token, username))
+
+        return {"token": token, "session": self._create_session(username)}
+
+    def _create_session(self, username):
+        session = ''.join([choice(string.letters) for i in range(settings.session_length)])
+        self._lobby_conn.runOperation(
+            "INSERT INTO sessions (username, session) VALUES (%s, %s)",
+            (username, session)
+        )
+
+        if settings.debug:
+            log.msg("Created session \"%s\" for user \"%s\"" % (session, username))
+
+        return session
+
+    def _cleanup(self):
+        if settings.debug:
+            log.msg("Running the cleanup")
+
+        self._lobby_conn.runOperation(
+            "DELETE FROM tokens WHERE updated_at < %s",
+            (datetime.now() - timedelta(days=settings.token_lifetime),)
+        )
+
+        self._lobby_conn.runOperation(
+            "DELETE FROM sessions WHERE created_at < %s",
+            (datetime.now() - timedelta(seconds=settings.session_lifetime),)
+        )

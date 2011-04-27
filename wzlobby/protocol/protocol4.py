@@ -34,6 +34,7 @@ NO_GAME = -402
 NOT_ACCEPTABLE = -403
 WRONG_LOGIN = -404
 LOGIN_REQUIRED = -405
+SESSION_INVALID = -406
 
 class Protocol4(SocketRPCProtocol):
     game = None
@@ -54,6 +55,7 @@ class Protocol4(SocketRPCProtocol):
         if not self.authenticated \
           and settings.login_required \
           and method != 'login':
+            log.msg('Not executing %s - login required' % method)
             return defer.fail(
                     Fault(LOGIN_REQUIRED, "Please login first!")
             )
@@ -63,35 +65,29 @@ class Protocol4(SocketRPCProtocol):
 
     def docall_login(self, username, password=None, token=None):
         def check_pass_cb(result):
-            if result == False:
-                log.msg('Password login for %s failed.' % username)
-                return defer.fail(
-                        Fault(WRONG_LOGIN, "Password login failed, unknown user or wrong password!")
-                )
-
             # Login ok
             self.authenticated = True
-
-            return self.db.get_user_token(username)
-
-        def check_token_cb(result):
-            if result == False:
-                log.msg('Token login for %s failed.' % username)
-                return defer.fail(
-                        Fault(WRONG_LOGIN, "Token login failed, unknown user or wrong password!")
-                )
-
-            # Token login ok
-            self.authenticated = True
-
             return result
 
+        def check_pass_eb(failure):
+            self.authenticated = False
+            return defer.fail(Fault(WRONG_LOGIN, "Password login failed, unknown user or wrong password!"))
+
+        def check_token_cb(result):
+            # Token login ok
+            self.authenticated = True
+            return result
+
+        def check_token_eb(failure):
+            self.authenticated = False
+            return defer.fail(Fault(WRONG_LOGIN, "Token login failed, unknown user or wrong password!"))
+
         if token is None:
-            d = self.db.check_user_password(username, password)
-            d.addCallback(check_pass_cb)
+            d = self.db.check_user_password(username, password, self.transport.getPeer().host)
+            d.addCallbacks(check_pass_cb, check_pass_eb)
         else:
-            d = self.db.check_user_token(username, token)
-            d.addCallback(check_token_cb)
+            d = self.db.check_user_token(username, token, self.transport.getPeer().host)
+            d.addCallbacks(check_token_cb, check_token_eb)
 
         return d
 
@@ -147,15 +143,24 @@ class Protocol4(SocketRPCProtocol):
         return defer.succeed('')
 
 
-    def docall_addPlayer(self, gameId, slot, name, ipaddress):
+    def docall_addPlayer(self, gameId, slot, name, username, session):
+        def check_cb(result):
+            if result:
+                game['currentPlayers'] += 1
+                return defer.succeed('')
+            else:
+                return defer.fail(Fault(SESSION_INVALID, 'Users session is invalid!'))
+
         game = self.gameDB.get(gameId, False)
         if not game:
             return defer.fail(
                     Fault(NO_GAME, 'Game %d does not exists' % gameId)
             )
 
-        game['currentPlayers'] += 1
-        return defer.succeed('')
+        d = self.db.check_user_session(username, session)
+        d.addCallback(check_cb)
+
+        return d
 
 
     def docall_delPlayer(self, gameId, slot):
