@@ -35,10 +35,6 @@ def _handleSIGHUP(*args):
     log.msg('Reloading the config')
     reactor.callLater(0, reload, settings)
 
-def main():
-    if hasattr(signal, "SIGHUP"):
-        signal.signal(signal.SIGHUP, _handleSIGHUP)
-
 def makeService():
     s = service.MultiService()
     f = protocol.ServerFactory()
@@ -49,3 +45,9 @@ def makeService():
     h = internet.TCPServer(9990, f).setServiceParent(s)
 
     return s
+
+if hasattr(signal, "SIGHUP"):
+    signal.signal(signal.SIGHUP, _handleSIGHUP)
+
+application = service.Application('wzlobbyserver')
+makeService().setServiceParent(application)
