@@ -53,6 +53,12 @@ lobby_pass = phpbb_pass
 # Remove old tokens and sessions every x seconds
 cleanup_interval = 43200
 
+# TCP stuff
+port = 9990
+ssl_port = 9994
+ssl_key = ""
+ssl_cert = ""
+
 #### END OF Settings ####
 
 def getMotd(version):

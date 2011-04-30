@@ -20,7 +20,7 @@
 #
 ###############################################################################
 
-from twisted.internet import protocol, reactor
+from twisted.internet import protocol, reactor, ssl
 from twisted.application import service, internet
 from twisted.python import log
 
@@ -42,7 +42,14 @@ def makeService():
     f.clients = []
     f.gameDB = GameDB()
     f.db = Database()
-    h = internet.TCPServer(9990, f).setServiceParent(s)
+    h = internet.TCPServer(settings.port, f).setServiceParent(s)
+    h = internet.SSLServer(
+       settings.ssl_port,
+       f,
+       ssl.DefaultOpenSSLContextFactory(
+                settings.ssl_key,
+                settings.ssl_cert)
+    ).setServiceParent(s)
 
     return s
 
