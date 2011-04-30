@@ -68,7 +68,7 @@ class ProtocolSwitcher(protocol.Protocol):
                 # Creates a new Protocol based on the version id
                 try:
                     self.protocol = globals()['Protocol%d' % version]()
-                except AttributeError:
+                except KeyError:
                     log.msg('Can\'t find protocol version %d (Protocol%d)' % (version, version))
                     self.transport.loseConnection()
                     return False

@@ -141,7 +141,7 @@ class Database(object):
     def _create_user_token(self, username, ip):
         token = ''.join([choice(string.letters) for i in range(settings.token_length)])
         self._lobby_conn.runOperation(
-            "INSERT INTO tokens (username, token last_ip) VALUES (%s, %s, %s, %s)",
+            "INSERT INTO tokens (username, token, last_ip) VALUES (%s, %s, %s)",
             (username, token, ip)
         )
 

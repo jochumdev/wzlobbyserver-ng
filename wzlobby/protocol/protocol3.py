@@ -168,9 +168,8 @@ class Protocol3(protocol.Protocol):
             if not func(data):
                 log.msg('%s: Failed' % cmd)
                 self.transport.loseConnection()
-        except AttributeError, e:
-            log.err(e)
-            log.msg('Got an unknown command "%s"' % cmd)
+        except AttributeError:
+            pass
         except Exception, e:
             self._logException(e)
 

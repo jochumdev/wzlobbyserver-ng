@@ -60,6 +60,8 @@ class Protocol4(SocketRPCProtocol):
                     Fault(LOGIN_REQUIRED, "Please login first!")
             )
 
+        log.msg('executing docall_%s' % method)
+
         return SocketRPCProtocol.dispatch_call(self, method, id, args, kwargs)
 
 
