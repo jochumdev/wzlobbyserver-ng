@@ -20,6 +20,8 @@
 #
 ###############################################################################
 
+# This is the original <3.0 Variant.
+
 __all__ = ['Protocol3']
 
 from twisted.python import log

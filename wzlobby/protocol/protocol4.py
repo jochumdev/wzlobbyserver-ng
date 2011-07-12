@@ -20,6 +20,8 @@
 #
 ###############################################################################
 
+# This is the V4 Variant of the Protocol - BSON.
+
 __all__ = ['Protocol4']
 
 from twisted.internet import defer
@@ -94,6 +96,12 @@ class Protocol4(SocketRPCProtocol):
         return d
 
 
+    def docall_logout(self):
+        self.authenticated = False
+
+        return defer.succeed("")
+
+
     def docall_addGame(self, *args, **kwargs):
         def checkFailed(reason):
             return defer.fail(
@@ -111,7 +119,8 @@ class Protocol4(SocketRPCProtocol):
                                                       game['description'].encode('utf8'),
                                                       game['hostplayer'].encode('utf8')))
 
-            return [game['gameId'], result]
+            return {"gameId": game['gameId'],
+                    "result": result}
 
 
         game = self.gameDB.create(self.lobbyVersion)

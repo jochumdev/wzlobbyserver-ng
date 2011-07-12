@@ -2,6 +2,7 @@
 # vim: set et sts=4 sw=4 encoding=utf-8:
 
 from distutils.version import StrictVersion
+from os.path import dirname, join as pathjoin, pardir
 
 #### START Settings ####
 

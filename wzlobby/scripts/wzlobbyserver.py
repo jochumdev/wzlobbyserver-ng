@@ -51,6 +51,24 @@ def makeService():
                 settings.ssl_cert)
     ).setServiceParent(s)
 
+    # Debug add some games
+#    for i in xrange(30):
+#        game = f.gameDB.create(4, True)
+#        f.gameDB.updateGame(game['gameId'], {
+#            "host"           : "localhost",
+#            "port"           : 2100,
+#            "description"    : "Test %d" % i,
+#            "currentPlayers" : 1,
+#            "maxPlayers"     : 3,
+#            "multiVer"       : "None existend test",
+#            "wzVerMajor"     : 4,
+#            "wzVerMinor"     : 11012,
+#            "isPrivate"      : True,
+#            "modlist"        : "",
+#            "mapname"        : "Sk-Rush-T1",
+#            "hostplayer"     : "Test %d" % i,
+#        })
+
     return s
 
 if hasattr(signal, "SIGHUP"):
