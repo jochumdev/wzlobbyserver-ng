@@ -30,7 +30,7 @@ from socketrpc.twisted_srpc import SocketRPCProtocol, set_serializer, Fault
 
 from wzlobby import settings
 
-set_serializer('bson')
+set_serializer('jsonlib')
 
 NO_GAME = -402
 NOT_ACCEPTABLE = -403
